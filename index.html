@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+<!-- Other external scripts and meta tags can also be added. -->
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" ></script>
+
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+    <script src="https://google-ar.github.io/three.ar.js/dist/three.ar.js"></script>
+<script src="https://rawgit.com/chenzlabs/aframe-ar/827e9db/dist/aframe-ar.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.rawgit.com/donmccurdy/aframe-extras/cfe5f316/dist/aframe-extras.js"></script>
+
+    
+    <title>Hello!</title>
+    
+    <!-- import the webpage's stylesheet -->
+    <link rel="stylesheet" href="/style.css">
+    
+    <!-- import the webpage's javascript file
+    <script type="module" src="/script.js"></script>
+    <script type="module" src="/tap-place.js"></script>-->
+  </head>  
+  <body>   
+  <script>
+      AFRAME.registerComponent("tap-place", {
+  init:function() {
+    const ground = document.getElementById('ground')
+
+    ground.addEventListener('click', (event) => {
+      alert('clicked')
+      // Create new entity for the new object
+      const existingElement = document.getElementById('pan')
+      let newElement
+      
+
+      if (existingElement) {
+     
+        newElement = existingElement
+      } else {
+         
+        newElement = document.createElement('a-entity')
+        newElement.setAttribute('id', 'pan')
+        this.el.sceneEl.appendChild(newElement)
+        // The raycaster gives a location of the touch in the scene
+        const touchPoint = event.detail.intersection.point
+        newElement.setAttribute('position', touchPoint)
+        newElement.addEventListener('model-loaded', () => {
+          // Once the model is loaded, we are ready to show it popping in using an animation
+          newElement.setAttribute('visible', 'true')
+          
+        newElement.setAttribute('scale', '0.03 0.03 0.03')
+        newElement.setAttribute('shadow', {
+          receive: false,
+        })
+
+        newElement.setAttribute('gltf-model', '#pan')
+      // newElement.setAttribute('visible', 'false')
+    })
+  }
+
+})
+                            
+                          
+      }
+      }
+                          
+                          )
+    </script>
+    <script>
+    AFRAME.registerComponent("gesture-handler", {
+  schema: {
+    enabled: { default: true },
+    rotationFactor: { default: 5 },
+    minScale: { default: 0.3 },
+    maxScale: { default: 8 },
+  },
+
+  init: function () {
+    this.handleScale = this.handleScale.bind(this);
+    this.handleRotation = this.handleRotation.bind(this);
+
+    this.isVisible = false;
+    this.initialScale = this.el.object3D.scale.clone();
+    this.scaleFactor = 1;
+
+    this.el.sceneEl.addEventListener("markerFound", (e) => {
+      this.isVisible = true;
+    });
+
+    this.el.sceneEl.addEventListener("markerLost", (e) => {
+      this.isVisible = false;
+    });
+  },
+
+  update: function () {
+    if (this.data.enabled) {
+      this.el.sceneEl.addEventListener("onefingermove", this.handleRotation);
+      this.el.sceneEl.addEventListener("twofingermove", this.handleScale);
+    } else {
+      this.el.sceneEl.removeEventListener("onefingermove", this.handleRotation);
+      this.el.sceneEl.removeEventListener("twofingermove", this.handleScale);
+    }
+  },
+
+  remove: function () {
+    this.el.sceneEl.removeEventListener("onefingermove", this.handleRotation);
+    this.el.sceneEl.removeEventListener("twofingermove", this.handleScale);
+  },
+
+  handleRotation: function (event) {
+    if (this.isVisible) {
+      this.el.object3D.rotation.y +=
+        event.detail.positionChange.x * this.data.rotationFactor;
+      this.el.object3D.rotation.x +=
+        event.detail.positionChange.y * this.data.rotationFactor;
+    }
+  },
+
+  handleScale: function (event) {
+    if (this.isVisible) {
+      this.scaleFactor *=
+        1 + event.detail.spreadChange / event.detail.startSpread;
+
+      this.scaleFactor = Math.min(
+        Math.max(this.scaleFactor, this.data.minScale),
+        this.data.maxScale
+      );
+
+      this.el.object3D.scale.x = this.scaleFactor * this.initialScale.x;
+      this.el.object3D.scale.y = this.scaleFactor * this.initialScale.y;
+      this.el.object3D.scale.z = this.scaleFactor * this.initialScale.z;
+    }
+  },
+});
+    </script>
+    <script>
+AFRAME.registerComponent("gesture-detector", {
+  schema: {
+    element: { default: "" }
+  },
+
+  init: function() {
+    this.targetElement =
+      this.data.element && document.querySelector(this.data.element);
+
+    if (!this.targetElement) {
+      this.targetElement = this.el;
+    }
+
+    this.internalState = {
+      previousState: null
+    };
+
+    this.emitGestureEvent = this.emitGestureEvent.bind(this);
+
+    this.targetElement.addEventListener("touchstart", this.emitGestureEvent);
+
+    this.targetElement.addEventListener("touchend", this.emitGestureEvent);
+
+    this.targetElement.addEventListener("touchmove", this.emitGestureEvent);
+  },
+
+  remove: function() {
+    this.targetElement.removeEventListener("touchstart", this.emitGestureEvent);
+
+    this.targetElement.removeEventListener("touchend", this.emitGestureEvent);
+
+    this.targetElement.removeEventListener("touchmove", this.emitGestureEvent);
+  },
+
+  emitGestureEvent(event) {
+    const currentState = this.getTouchState(event);
+
+    const previousState = this.internalState.previousState;
+
+    const gestureContinues =
+      previousState &&
+      currentState &&
+      currentState.touchCount == previousState.touchCount;
+
+    const gestureEnded = previousState && !gestureContinues;
+
+    const gestureStarted = currentState && !gestureContinues;
+
+    if (gestureEnded) {
+      const eventName =
+        this.getEventPrefix(previousState.touchCount) + "fingerend";
+
+      this.el.emit(eventName, previousState);
+
+      this.internalState.previousState = null;
+    }
+
+    if (gestureStarted) {
+      currentState.startTime = performance.now();
+
+      currentState.startPosition = currentState.position;
+
+      currentState.startSpread = currentState.spread;
+
+      const eventName =
+        this.getEventPrefix(currentState.touchCount) + "fingerstart";
+
+      this.el.emit(eventName, currentState);
+
+      this.internalState.previousState = currentState;
+    }
+
+    if (gestureContinues) {
+      const eventDetail = {
+        positionChange: {
+          x: currentState.position.x - previousState.position.x,
+
+          y: currentState.position.y - previousState.position.y
+        }
+      };
+
+      if (currentState.spread) {
+        eventDetail.spreadChange = currentState.spread - previousState.spread;
+      }
+
+      // Update state with new data
+
+      Object.assign(previousState, currentState);
+
+      // Add state data to event detail
+
+      Object.assign(eventDetail, previousState);
+
+      const eventName =
+        this.getEventPrefix(currentState.touchCount) + "fingermove";
+
+      this.el.emit(eventName, eventDetail);
+    }
+  },
+
+  getTouchState: function(event) {
+    if (event.touches.length === 0) {
+      return null;
+    }
+
+    // Convert event.touches to an array so we can use reduce
+
+    const touchList = [];
+
+    for (let i = 0; i < event.touches.length; i++) {
+      touchList.push(event.touches[i]);
+    }
+
+    const touchState = {
+      touchCount: touchList.length
+    };
+
+    // Calculate center of all current touches
+
+    const centerPositionRawX =
+      touchList.reduce((sum, touch) => sum + touch.clientX, 0) /
+      touchList.length;
+
+    const centerPositionRawY =
+      touchList.reduce((sum, touch) => sum + touch.clientY, 0) /
+      touchList.length;
+
+    touchState.positionRaw = { x: centerPositionRawX, y: centerPositionRawY };
+
+    // Scale touch position and spread by average of window dimensions
+
+    const screenScale = 2 / (window.innerWidth + window.innerHeight);
+
+    touchState.position = {
+      x: centerPositionRawX * screenScale,
+      y: centerPositionRawY * screenScale
+    };
+
+    // Calculate average spread of touches from the center point
+
+    if (touchList.length >= 2) {
+      const spread =
+        touchList.reduce((sum, touch) => {
+          return (
+            sum +
+            Math.sqrt(
+              Math.pow(centerPositionRawX - touch.clientX, 2) +
+                Math.pow(centerPositionRawY - touch.clientY, 2)
+            )
+          );
+        }, 0) / touchList.length;
+
+      touchState.spread = spread * screenScale;
+    }
+
+    return touchState;
+  },
+
+  getEventPrefix(touchCount) {
+    const numberNames = ["one", "two", "three", "many"];
+
+    return numberNames[Math.min(touchCount, 4) - 1];
+  }
+});
+</script>
+<a-scene
+           arjs
+         tap-place
+         gesture-detector
+         gesture-handler
+   vr-mode-ui="enabled: false"
+   id="scene"
+  renderer="colorManagement:true"
+  xrweb
+  
+    
+>
+   <a-assets>
+    <a-asset-item  id="pan" src="https://cdn.glitch.com/a3d5fcb5-1b49-4fbc-a2f9-7644fc468f70%2Fscene.glb?v=1609692573924"
+                  ></a-asset-item>
+  </a-assets>
+
+
+  <a-entity
+  text="value: Hello, A-Frame!; color: #000"
+  position="-0.9 0.2 -3"
+  scale="1.5 1.5 1.5"></a-entity>
+  <a-entity camera>
+    
+   <a-camera id="camera" position="0 8 0" raycaster="objects: .cantap" cursor="
+      fuse: false;
+      rayOrigin: mouse">
+  
+  </a-camera>
+    </a-entity>
+  <a-box  
+    id="ground" class="cantap" scale="1000 2 1000" position="0 -1 0"
+    material="shader: shadow; transparent: true; opacity: 0.4" shadow>
+  </a-box>
+
+
+    <a-entity class="cantap" gesture-handler="minScale: 0.1; maxScale: 10" gltf-model="#pan" position="0 0 -5" rotation="0 30 30" scale="0.2 0.2 0.2"
+         animation="property: object3D.position.y; to: 0.2; dir: alternate; dur: 2000; loop: true"
+      
+       ></a-entity>
+  <a-ring id="cursor" radius-inner="0.1" radius-outer="0.2"  
+        color="teal" position="0 -0.8 -5" rotation="-90 0 0">
+</a-ring>
+  
+       
+
+    
+    <!-- include the Glitch button to show what the webpage is about and
+          to make it easier for folks to view source and remix
+    <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+    <script src="https://button.glitch.me/button.js" defer></script>-->
+  </a-scene>
+
+  </body>
+</html>
